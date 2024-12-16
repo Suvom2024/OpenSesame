@@ -1,7 +1,7 @@
 'use client'
 
 import Image from "next/image"
-import { Paperclip, Info, Plus, Trash2,Download  } from "lucide-react"
+import { Paperclip, Info, Plus, Trash2,Download, GripVertical  } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
 
@@ -52,7 +52,7 @@ export default function BulkInference() {
       setShowSuccess(true);
       // Redirect after 5 seconds
       setTimeout(() => {
-        router.push('/bulk-inference'); // or wherever you want to redirect
+        router.push('/'); // or wherever you want to redirect
       }, 5000);
     }, 2000);
   };
@@ -77,7 +77,43 @@ export default function BulkInference() {
       }
     ]);
   };
+  interface DragImage extends HTMLImageElement {
+    width: number;
+    height: number;
+  }
 
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+  e.dataTransfer.setData('text/plain', index.toString());
+  
+  // Create an invisible drag image
+  const dragImage = document.createElement('div');
+  dragImage.style.width = '0';
+  dragImage.style.height = '0';
+  document.body.appendChild(dragImage);
+  e.dataTransfer.setDragImage(dragImage, 0, 0);
+  
+  // Clean up
+  setTimeout(() => {
+    document.body.removeChild(dragImage);
+  }, 0);
+};
+
+const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+  e.preventDefault();
+};
+
+const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, dropIndex: number) => {
+  e.preventDefault();
+  const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+  if (dragIndex === dropIndex) return;
+
+  setRows(prev => {
+    const newRows = [...prev];
+    const [draggedRow] = newRows.splice(dragIndex, 1);
+    newRows.splice(dropIndex, 0, draggedRow);
+    return newRows;
+  });
+};
   const CircularProgress = ({ progress }: { progress: number }) => {
     const radius = 30;
     const circumference = 2 * Math.PI * radius;
@@ -189,10 +225,10 @@ export default function BulkInference() {
         </div>
 
         <a
-          href="/bulk-inference"
+          href="/"
           onClick={(e) => {
             e.preventDefault();
-            router.push('/bulk-inference');
+            router.push('/');
           }}
           className="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
         >
@@ -239,104 +275,118 @@ export default function BulkInference() {
         <div className="relative">
           {/* Removed overflow-hidden to allow delete button to be visible */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible transition-all duration-200 hover:shadow-md">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50/50">
-                  <th className="w-1/3 px-6 py-4 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Column Name</span>
-                      <Info 
-                        className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer" 
-                      />
-                    </div>
-                  </th>
-                  <th className="w-1/3 px-6 py-4 transition-colors border-l border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Custom Name</span>
-                      <Info 
-                        className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer"
-                      />
-                    </div>
-                  </th>
-                  <th className="w-1/3 px-6 py-4 transition-colors border-l border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pick Key</span>
-                      <Info 
-                        className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer"
-                        onMouseEnter={(e) => handleInfoClick(e)}
-                        onMouseLeave={() => setShowTooltip(false)}
-                      />
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr 
-                    key={row.id} 
-                    className="group relative hover:bg-gray-50/50 transition-colors cursor-default"
-                  >
-                    <td className="px-6 py-4 border-b border-gray-100">
-                      <input
-                        type="text"
-                        value={row.columnName}
-                        onChange={(e) => {
-                          const newRows = [...rows];
-                          newRows[index].columnName = e.target.value;
-                          setRows(newRows);
-                        }}
-                        className="w-full text-sm text-gray-800 bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-gray-400"
-                        placeholder="Custom Name"
-                      />
-                    </td>
-                    <td className="px-6 py-4 border-b border-l border-gray-100">
-                      <input
-                        type="text"
-                        value={row.customName}
-                        onChange={(e) => {
-                          const newRows = [...rows];
-                          newRows[index].customName = e.target.value;
-                          setRows(newRows);
-                        }}
-                        className="w-full text-sm text-gray-800 bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-gray-400"
-                        placeholder="Custom Name"
-                      />
-                    </td>
-                    <td className="px-6 py-4 border-b border-l border-gray-100">
-                      <div className="relative group/checkbox">
-                        {row.isPrimaryKey ? (
-                          <div 
-                            className="w-4 h-4 rounded bg-[#E85C2B] flex items-center justify-center cursor-pointer"
-                            onClick={() => handlePrimaryKeyChange(row.id)}
-                          >
-                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                        ) : (
-                          <div 
-                            className="w-4 h-4 rounded border border-gray-300 hover:border-[#E85C2B] cursor-pointer transition-colors"
-                            onClick={() => handlePrimaryKeyChange(row.id)}
-                          />
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Delete Icon Positioned Outside the Table Row */}
-                    <td className="w-0 p-0 relative">
-                      <button
-                        onClick={() => handleDeleteRow(row.id)}
-                        className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-red-400 hover:text-red-500 z-10"
-                        aria-label={`Delete row ${row.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  <table className="w-full">
+    <thead>
+      <tr className="bg-gray-50/50">
+        {/* Drag Handle Column */}
+        <th className="w-10 px-2 transition-colors"></th>
+        <th className="w-1/3 px-6 py-4 transition-colors">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Column Name</span>
+            <Info 
+              className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer" 
+            />
           </div>
+        </th>
+        <th className="w-1/3 px-6 py-4 transition-colors border-l border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Custom Name</span>
+            <Info 
+              className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer"
+            />
+          </div>
+        </th>
+        <th className="w-1/3 px-6 py-4 transition-colors border-l border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pick Key</span>
+            <Info 
+              className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer"
+              onMouseEnter={(e) => handleInfoClick(e)}
+              onMouseLeave={() => setShowTooltip(false)}
+            />
+          </div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((row, index) => (
+        <tr 
+        key={row.id} 
+        draggable={true}
+        onDragStart={(e) => handleDragStart(e, index)}
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, index)}
+        className="group relative hover:bg-gray-50/50 transition-colors cursor-default"
+        style={{ touchAction: 'none' }}
+      >
+          {/* Drag Handle Column */}
+          <td className="w-10 px-2 border-b border-gray-100">
+            <div className="flex items-center justify-center h-full cursor-grab active:cursor-grabbing">
+              <GripVertical className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </td>
+          {/* Column Name */}
+          <td className="px-6 py-4 border-b border-gray-100">
+            <input
+              type="text"
+              value={row.columnName}
+              onChange={(e) => {
+                const newRows = [...rows];
+                newRows[index].columnName = e.target.value;
+                setRows(newRows);
+              }}
+              className="w-full text-sm text-gray-800 bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-gray-400"
+              placeholder="Custom Name"
+            />
+          </td>
+          {/* Custom Name */}
+          <td className="px-6 py-4 border-b border-l border-gray-100">
+            <input
+              type="text"
+              value={row.customName}
+              onChange={(e) => {
+                const newRows = [...rows];
+                newRows[index].customName = e.target.value;
+                setRows(newRows);
+              }}
+              className="w-full text-sm text-gray-800 bg-transparent border-0 focus:ring-0 focus:outline-none placeholder-gray-400"
+              placeholder="Custom Name"
+            />
+          </td>
+          {/* Pick Key */}
+          <td className="px-6 py-4 border-b border-l border-gray-100">
+            <div className="relative group/checkbox">
+              {row.isPrimaryKey ? (
+                <div 
+                  className="w-4 h-4 rounded bg-[#E85C2B] flex items-center justify-center cursor-pointer"
+                  onClick={() => handlePrimaryKeyChange(row.id)}
+                >
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              ) : (
+                <div 
+                  className="w-4 h-4 rounded border border-gray-300 hover:border-[#E85C2B] cursor-pointer transition-colors"
+                  onClick={() => handlePrimaryKeyChange(row.id)}
+                />
+              )}
+            </div>
+          </td>
+          {/* Delete Button */}
+          <td className="w-0 p-0 relative">
+            <button
+              onClick={() => handleDeleteRow(row.id)}
+              className="absolute left-full ml-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-red-400 hover:text-red-500 z-10"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
 
           {showTooltip && (
             <div 
