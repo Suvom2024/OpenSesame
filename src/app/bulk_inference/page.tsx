@@ -1,8 +1,9 @@
 'use client'
 
 import Image from "next/image"
-import { Paperclip, Info, Plus, Trash2 } from "lucide-react"
+import { Paperclip, Info, Plus, Trash2,Download  } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 
 interface TableRow {
   id: number;
@@ -16,12 +17,14 @@ export default function BulkInference() {
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [showTable, setShowTable] = useState(false)
+  const router = useRouter()
   const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
   const [rows, setRows] = useState<TableRow[]>([
     { id: 1, columnName: 'Custom Name', customName: 'Custom Name', isPrimaryKey: false },
     { id: 2, columnName: 'Custom Name', customName: 'Custom Name', isPrimaryKey: false },
   ])
+  const [showSuccess, setShowSuccess] = useState(false)
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -43,6 +46,21 @@ export default function BulkInference() {
     return () => clearInterval(interval);
   }, [isLoading]);
 
+  const handleTableSubmit = () => {
+    // Simulate processing
+    setTimeout(() => {
+      setShowSuccess(true);
+      // Redirect after 5 seconds
+      setTimeout(() => {
+        router.push('/bulk-inference'); // or wherever you want to redirect
+      }, 5000);
+    }, 2000);
+  };
+
+  const handleDownload = () => {
+    // Implement your download logic here
+    console.log('Downloading file...');
+  };
   const handleSubmit = () => {
     setIsLoading(true);
     setProgress(0);
@@ -137,7 +155,52 @@ export default function BulkInference() {
       </div>
     );
   }
+  if (showSuccess) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4">
+        <h1 className="text-2xl font-semibold mb-20">Bulk Inference</h1>
+        
+        <div className="bg-[#F0FDF4] rounded-2xl p-8 max-w-md w-full text-center relative mb-8">
+          <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-6 h-6 text-white"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          
+          <h2 className="text-xl font-medium text-gray-900 mb-6">
+            File Created Successfully
+          </h2>
+          
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#E85C2B] text-white rounded-lg hover:bg-[#D64E21] transition-colors font-medium text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Download File
+          </button>
+        </div>
 
+        <a
+          href="/bulk-inference"
+          onClick={(e) => {
+            e.preventDefault();
+            router.push('/bulk-inference');
+          }}
+          className="text-gray-600 hover:text-gray-900 text-sm font-medium transition-colors"
+        >
+          Back to Home
+        </a>
+      </div>
+    );
+  }
   if (showTable) {
     return (
       <div className="p-8 max-w-5xl mx-auto relative">
@@ -293,7 +356,7 @@ export default function BulkInference() {
               Add new Row
             </button>
             <button
-              onClick={handleSubmit}
+              onClick={handleTableSubmit}
               className="px-8 py-2.5 text-sm font-medium text-white bg-[#E85C2B] hover:bg-[#D64E21] rounded-lg transition-colors"
             >
               Submit
