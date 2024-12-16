@@ -126,7 +126,7 @@ export default function BulkInference() {
     })));
   };
 
-  const handleInfoClick = (e: React.MouseEvent, id: number) => {
+  const handleInfoClick = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipPosition({
       x: rect.right + 10,
@@ -263,7 +263,7 @@ export default function BulkInference() {
                       <span className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Pick Key</span>
                       <Info 
                         className="w-4 h-4 text-gray-400 hover:text-[#E85C2B] transition-colors cursor-pointer"
-                        onMouseEnter={(e) => handleInfoClick(e, 0)}
+                        onMouseEnter={(e) => handleInfoClick(e)}
                         onMouseLeave={() => setShowTooltip(false)}
                       />
                     </div>
