@@ -1,98 +1,48 @@
 'use client'
 
-import { Filter, X, Info, Globe, Clock, Copy, MonitorPlay, Subtitles } from 'lucide-react'
-import * as React from 'react'
+import { Filter, X, Info, Globe, Clock, Copy, MonitorPlay, Subtitles, Loader2 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
-const mockResults = [
-  {
-    id: 1,
-    name: "Decision-making",
-    publisher: "London School of sales",
-    courseId: "asdyays-23g8g8-2132ss",
-    description: "Sales managers must avoid procrastination and make difficult decisions when required in a timely fashion. Once a decision has been taken, it's crucial that this is communicated effectively with the team. This module reveals what the impact of poor decision-making can lead to, as well as providing advice and tools on how to become more decisive.",
-    seatTime: "45 Minutes",
-    textLanguages: "British English",
-    audio: "British English",
-    subtitle: "British English",
-    score: 8,
-    createdDate: "12 Jan 2025",
-    modifiedDate: "12 Jan 2025",
-    isPublic: true,
-    isRecommended: true,
-    subjects: ["Decision Making", "Management"],
-    topLevelSubject: "Business Skills",
-    leadershipCategory: "Leadership & Management",
-    additionalDescription: "Animated Video;Inline Activities;Offline Exercises;Post-Assessment;Video Accreditations: 0.75;Continuing Professional Development (CPD);The CPD Certification Service UK"
-  },
-  {
-    id: 2,
-    name: "Strategic Planning",
-    publisher: "London School of sales",
-    courseId: "bsdyays-24g8g8-2132ss",
-    description: "Learn how to develop and implement effective strategic plans that align with organizational goals. This comprehensive module covers the essential elements of strategic planning, from analysis to execution, ensuring leaders can guide their teams towards success.",
-    seatTime: "45 Minutes",
-    textLanguages: "British English",
-    audio: "British English",
-    subtitle: "British English",
-    score: 8,
-    createdDate: "12 Jan 2025",
-    modifiedDate: "12 Jan 2025",
-    isPublic: true,
-    isRecommended: false,
-    subjects: ["Strategy", "Management"],
-    topLevelSubject: "Business Skills",
-    leadershipCategory: "Leadership & Management",
-    additionalDescription: "Animated Video;Inline Activities;Offline Exercises;Post-Assessment;Video Accreditations: 0.75;Continuing Professional Development (CPD);The CPD Certification Service UK"
-  },
-  {
-    id: 3,
-    name: "Team Leadership",
-    publisher: "London School of sales",
-    courseId: "csdyays-25g8g8-2132ss",
-    description: "Master the art of leading high-performing teams through effective communication, motivation, and conflict resolution. This module provides practical tools and techniques for developing leadership skills that inspire and drive team success.",
-    seatTime: "45 Minutes",
-    textLanguages: "British English",
-    audio: "British English",
-    subtitle: "British English",
-    score: 8,
-    createdDate: "12 Jan 2025",
-    modifiedDate: "12 Jan 2025",
-    isPublic: true,
-    isRecommended: true,
-    subjects: ["Leadership", "Team Management"],
-    topLevelSubject: "Business Skills",
-    leadershipCategory: "Leadership & Management",
-    additionalDescription: "Animated Video;Inline Activities;Offline Exercises;Post-Assessment;Video Accreditations: 0.75;Continuing Professional Development (CPD);The CPD Certification Service UK"
-  },
-  {
-    id: 4,
-    name: "Sales Excellence",
-    publisher: "London School of sales",
-    courseId: "dsdyays-26g8g8-2132ss",
-    description: "Enhance your sales performance with advanced techniques in prospecting, negotiation, and closing. This comprehensive module covers the entire sales cycle, providing practical strategies for achieving consistent sales success.",
-    seatTime: "45 Minutes",
-    textLanguages: "British English",
-    audio: "British English",
-    subtitle: "British English",
-    score: 8,
-    createdDate: "12 Jan 2025",
-    modifiedDate: "12 Jan 2025",
-    isPublic: true,
-    isRecommended: false,
-    subjects: ["Sales", "Business Development"],
-    topLevelSubject: "Business Skills",
-    leadershipCategory: "Sales & Marketing",
-    additionalDescription: "Animated Video;Inline Activities;Offline Exercises;Post-Assessment;Video Accreditations: 0.75;Continuing Professional Development (CPD);The CPD Certification Service UK"
-  }
-]
+interface CourseResult {
+  course: {
+    id: string;
+    name: string;
+    publisher: string;
+    courseId: string;
+    description: string;
+    seatTime: string;
+    textLanguages: string;
+    audio: string;
+    subtitle: string;
+    isPublic: boolean;
+    isRecommended: boolean;
+    subjects: string[];
+    topLevelSubject: string;
+    leadershipCategory: string;
+    createdDate: string;
+    modifiedDate: string;
+    additionalDescription: string;
+  };
+  score: number;
+  reasoning?: string;
+}
+
+interface CourseSearchResponse {
+  results: CourseResult[];
+  status: string;
+  error?: string;
+  code: number;
+}
 
 export default function Home() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [showResults, setShowResults] = useState(false)
-  const [selectedResult, setSelectedResult] = useState<any>(null)
+  const [selectedResult, setSelectedResult] = useState<CourseResult | null>(null)
+  const [searchResults, setSearchResults] = useState<CourseResult[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -105,15 +55,56 @@ export default function Home() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-const handleLanguageToggle = (language: string) => {
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsLoading(true);
+    setError(null);
+    setShowResults(false);
+    
+    try {
+      const response = await fetch('/course_search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          num_courses: 10,
+          languages: selectedLanguages,
+          require_reasoning: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Search failed. Please try again.');
+      }
+      
+      const data: CourseSearchResponse = await response.json();
+      
+      if (data.status === 'success') {
+        setSearchResults(data.results);
+        setShowResults(true);
+      } else {
+        throw new Error(data.error || 'Failed to get search results');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLanguageToggle = (language: string) => {
     setSelectedLanguages(prev => {
       if (prev.includes(language)) {
-        return prev.filter(l => l !== language)
+        return prev.filter(l => l !== language);
       } else {
-        return [...prev, language]
+        return [...prev, language];
       }
-    })
-  }
+    });
+  };
+
   const ScoreMeter = ({ score }: { score: number }) => {
     const getColor = (score: number) => {
       if (score >= 8) return 'text-blue-600 bg-blue-50'
@@ -153,221 +144,247 @@ const handleLanguageToggle = (language: string) => {
     )
   }
   
-  const ResultCard = ({ result, onClick }: { result: any; onClick: () => void }) => (
-  <div 
-    onClick={onClick}
-    className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4 hover:shadow-md transition-shadow cursor-pointer"
-  >
-    <div className="p-4 sm:p-6">
-      {result.isRecommended && (
-        <div className="inline-block px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded-full mb-4">
-          Recommended
-        </div>
-      )}
+  const ResultCard = ({ result, onClick }: { result: CourseResult; onClick: () => void }) => (
+    <div 
+      onClick={onClick}
+      className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden mb-4 hover:shadow-md transition-shadow cursor-pointer"
+    >
+      <div className="p-4 sm:p-6">
+        {result.course.isRecommended && (
+          <div className="inline-block px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded-full mb-4">
+            Recommended
+          </div>
+        )}
 
-      <div className="border-t border-gray-100 mb-4" />
+        <div className="border-t border-gray-100 mb-4" />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pb-4 border-b border-gray-100">
-        <div className="space-y-1">
-          <div className="text-xs text-gray-400 font-medium">DOCUMENT NAME</div>
-          <div className="text-gray-900 font-semibold">{result.name}</div>
-        </div>
-        <div className="space-y-1">
-          <div className="text-xs text-gray-400 font-medium">PUBLISHER</div>
-          <div className="text-gray-600">{result.publisher}</div>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
-          <div className="space-y-1 mb-2 sm:mb-0">
-            <div className="text-xs text-gray-400 font-medium">COURSE ID</div>
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="font-mono">{result.courseId}</span>
-              <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pb-4 border-b border-gray-100">
+          <div className="space-y-1">
+            <div className="text-xs text-gray-400 font-medium">DOCUMENT NAME</div>
+            <div className="text-gray-900 font-semibold">{result.course.name}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs text-gray-400 font-medium">PUBLISHER</div>
+            <div className="text-gray-600">{result.course.publisher}</div>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
+            <div className="space-y-1 mb-2 sm:mb-0">
+              <div className="text-xs text-gray-400 font-medium">COURSE ID</div>
+              <div className="flex items-center gap-2 text-gray-600">
+                <span className="font-mono">{result.course.courseId}</span>
+                <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <ScoreMeter score={result.score} />
+              <div className="text-xs text-gray-400 font-medium ml-1">SCORE</div>
+              {result.reasoning && (
+                <div className="relative group">
+                <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
+                {result.reasoning && (
+                  <div className="absolute z-50 invisible group-hover:visible bg-gray-900/95 text-white text-sm px-4 py-2.5 rounded-lg shadow-xl -translate-x-1/2 left-1/2 mt-2 min-w-[200px] max-w-[300px]">
+                    {result.reasoning}
+                  </div>
+                )}
+              </div>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <ScoreMeter score={result.score} />
-            <div className="text-xs text-gray-400 font-medium ml-1">SCORE</div>
-            <Info className="w-4 h-4 text-gray-400 cursor-pointer" />
-          </div>
         </div>
-      </div>
 
-      <div className="py-4 border-b border-gray-100">
-        <div className="text-xs text-gray-400 font-medium mb-1">DESCRIPTION</div>
-        <p className="text-gray-600 line-clamp-2">{result.description}</p>
-      </div>
+        <div className="py-4 border-b border-gray-100">
+          <div className="text-xs text-gray-400 font-medium mb-1">DESCRIPTION</div>
+          <p className="text-gray-600 line-clamp-2">{result.course.description}</p>
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-4">
-        <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
-          <div className="bg-white p-2 rounded-lg flex-shrink-0">
-            <Clock className="w-4 h-4 text-gray-500" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-4">
+          <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
+            <div className="bg-white p-2 rounded-lg flex-shrink-0">
+              <Clock className="w-4 h-4 text-gray-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-gray-400 font-medium">SEAT TIME</div>
+              <div className="text-sm text-gray-600 truncate">{result.course.seatTime}</div>
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="text-xs text-gray-400 font-medium">SEAT TIME</div>
-            <div className="text-sm text-gray-600 truncate">{result.seatTime}</div>
+          <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
+            <div className="bg-white p-2 rounded-lg flex-shrink-0">
+              <Globe className="w-4 h-4 text-gray-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-gray-400 font-medium">TEXT LANGUAGES</div>
+              <div className="text-sm text-gray-600 truncate">{result.course.textLanguages}</div>
+            </div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
+            <div className="bg-white p-2 rounded-lg flex-shrink-0">
+              <MonitorPlay className="w-4 h-4 text-gray-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-gray-400 font-medium">AUDIO</div>
+              <div className="text-sm text-gray-600 truncate">{result.course.audio}</div>
+            </div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
+            <div className="bg-white p-2 rounded-lg flex-shrink-0">
+              <Subtitles className="w-4 h-4 text-gray-500" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs text-gray-400 font-medium">SUBTITLE</div>
+              <div className="text-sm text-gray-600 truncate">{result.course.subtitle}</div>
+            </div>
           </div>
         </div>
-        <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
-          <div className="bg-white p-2 rounded-lg flex-shrink-0">
-            <Globe className="w-4 h-4 text-gray-500" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-gray-400 font-medium">TEXT LANGUAGES</div>
-            <div className="text-sm text-gray-600 truncate">{result.textLanguages}</div>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
-          <div className="bg-white p-2 rounded-lg flex-shrink-0">
-            <MonitorPlay className="w-4 h-4 text-gray-500" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-gray-400 font-medium">AUDIO</div>
-            <div className="text-sm text-gray-600 truncate">{result.audio}</div>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-3 rounded-xl flex items-center gap-3">
-          <div className="bg-white p-2 rounded-lg flex-shrink-0">
-            <Subtitles className="w-4 h-4 text-gray-500" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-xs text-gray-400 font-medium">SUBTITLE</div>
-            <div className="text-sm text-gray-600 truncate">{result.subtitle}</div>
-          </div>
-        </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 border-t border-gray-100">
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-gray-400 mb-2 sm:mb-0">
-          <span>Created Date: {result.createdDate}</span>
-          <span>Modified Date: {result.modifiedDate}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-400">Public URL</span>
-          <button className="ml-4 px-4 py-1.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-            Know more
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)
-const DetailView = ({ result, onClose }: { result: any; onClose: () => void }) => (
-  <div className="h-full overflow-hidden bg-white shadow-lg border-l border-gray-100 rounded-l-3xl">
-    <div 
-      className="h-full overflow-y-auto px-8" 
-      style={{ 
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-      }}
-    >
-      <div className="py-8 space-y-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="text-xs text-gray-500 uppercase">DOCUMENT NAME</div>
-            <div className="text-lg font-medium mt-1">{result.name}</div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pt-4 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 text-sm text-gray-400 mb-2 sm:mb-0">
+            <span>Created Date: {result.course.createdDate}</span>
+            <span>Modified Date: {result.course.modifiedDate}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <ScoreMeter score={result.score} />
-            <button 
-              onClick={onClose}
-              className="hover:bg-gray-50 p-1 rounded-full"
-            >
-              <X className="w-5 h-5 text-gray-400" />
+          <div className="flex items-center gap-2">
+            {result.course.isPublic && (
+              <>
+                <Globe className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-400">Public URL</span>
+              </>
+            )}
+            <button className="ml-4 px-4 py-1.5 text-sm text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+              Know more
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  )
 
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <div className="text-xs text-gray-500 uppercase">PUBLISHER</div>
-            <div className="mt-1">{result.publisher}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 uppercase">COURSE ID</div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="font-mono">{result.courseId}</span>
-              <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
+  const DetailView = ({ result, onClose }: { result: CourseResult; onClose: () => void }) => (
+    <div className="h-full overflow-hidden bg-white shadow-lg border-l border-gray-100 rounded-l-3xl">
+      <div 
+        className="h-full overflow-y-auto px-8" 
+        style={{ 
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
+        <div className="py-8 space-y-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-xs text-gray-500 uppercase">DOCUMENT NAME</div>
+              <div className="text-lg font-medium mt-1">{result.course.name}</div>
             </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500 uppercase">DESCRIPTION</div>
-          <p className="mt-2 text-gray-700">{result.description}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          {[
-            { icon: Clock, label: 'SEAT TIME', value: result.seatTime },
-            { icon: Globe, label: 'TEXT LANGUAGES', value: result.textLanguages },
-            { icon: MonitorPlay, label: 'AUDIO', value: result.audio },
-            { icon: Subtitles, label: 'SUBTITLE', value: result.subtitle }
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-              <div className="bg-white p-2 rounded-lg">
-                <Icon className="w-4 h-4 text-gray-500" />
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 uppercase">{label}</div>
-                <div className="text-sm mt-0.5">{value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div>
-          <div className="text-xs text-gray-500 uppercase mb-3">SUBJECTS</div>
-          <div className="flex flex-wrap gap-2">
-            {result.subjects.map((subject: string) => (
-              <span 
-                key={subject} 
-                className="px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-sm"
+            <div className="flex items-center gap-3">
+              <ScoreMeter score={result.score} />
+              <button 
+                onClick={onClose}
+                className="hover:bg-gray-50 p-1 rounded-full"
               >
-                {subject}
-              </span>
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="text-xs text-gray-500 uppercase">PUBLISHER</div>
+              <div className="mt-1">{result.course.publisher}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 uppercase">COURSE ID</div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="font-mono">{result.course.courseId}</span>
+                <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs text-gray-500 uppercase">DESCRIPTION</div>
+            <p className="mt-2 text-gray-700">{result.course.description}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { icon: Clock, label: 'SEAT TIME', value: result.course.seatTime },
+              { icon: Globe, label: 'TEXT LANGUAGES', value: result.course.textLanguages },
+              { icon: MonitorPlay, label: 'AUDIO', value: result.course.audio },
+              { icon: Subtitles, label: 'SUBTITLE', value: result.course.subtitle }
+            ].map(({ icon: Icon, label, value }) => (
+              <div key={label} className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                <div className="bg-white p-2 rounded-lg">
+                  <Icon className="w-4 h-4 text-gray-500" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase">{label}</div>
+                  <div className="text-sm mt-0.5">{value}</div>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
 
-        <div>
-          <div className="text-xs text-gray-500 uppercase mb-3">TOP-LEVEL SUBJECT</div>
-          <div className="flex flex-wrap gap-2">
-            <span className="px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-sm">
-              {result.topLevelSubject}
-            </span>
-            <span className="px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-sm">
-              {result.leadershipCategory}
-            </span>
+          {result.course.subjects && (
+            <div>
+              <div className="text-xs text-gray-500 uppercase mb-3">SUBJECTS</div>
+              <div className="flex flex-wrap gap-2">
+                {result.course.subjects.map((subject: string) => (
+                  <span 
+                    key={subject} 
+                    className="px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-sm"
+                  >
+                    {subject}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+{(result.course.topLevelSubject || result.course.leadershipCategory) && (
+            <div>
+              <div className="text-xs text-gray-500 uppercase mb-3">TOP-LEVEL SUBJECT</div>
+              <div className="flex flex-wrap gap-2">
+                {result.course.topLevelSubject && (
+                  <span className="px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-sm">
+                    {result.course.topLevelSubject}
+                  </span>
+                )}
+                {result.course.leadershipCategory && (
+                  <span className="px-3 py-1 bg-orange-50 text-orange-500 rounded-full text-sm">
+                    {result.course.leadershipCategory}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {result.course.additionalDescription && (
+            <div>
+              <div className="text-xs text-gray-500 uppercase mb-2">ADDITIONAL DESCRIPTION</div>
+              <p className="text-gray-700 text-sm leading-relaxed">
+                {result.course.additionalDescription}
+              </p>
+            </div>
+          )}
+
+          <div className="pt-6 border-t border-gray-100">
+            <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
+              <span>Created: {result.course.createdDate}</span>
+              <span>Modified: {result.course.modifiedDate}</span>
+            </div>
+
+            {result.course.isPublic && (
+              <div className="flex items-center gap-2 mb-4">
+                <Globe className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-500">Public URL</span>
+              </div>
+            )}
+
+            <button className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
+              Know more
+            </button>
           </div>
-        </div>
-
-                  <div>
-          <div className="text-xs text-gray-500 uppercase mb-2">DESCRIPTION</div>
-          <p className="text-gray-700 text-sm leading-relaxed">
-            {result.additionalDescription}
-          </p>
-        </div>
-
-        <div className="pt-6 border-t border-gray-100">
-          <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-            <span>Created: {result.createdDate}</span>
-            <span>Modified: {result.modifiedDate}</span>
-          </div>
-
-          <div className="flex items-center gap-2 mb-4">
-            <Globe className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-500">Public URL</span>
-          </div>
-
-          <button className="w-full px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
-            Know more
-          </button>
         </div>
       </div>
     </div>
-  </div>
-)
+  )
 
   return (
     <main className="min-h-screen bg-white">
@@ -437,25 +454,42 @@ const DetailView = ({ result, onClose }: { result: any; onClose: () => void }) =
                 className="flex-1 h-11 px-4 rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-500 focus:outline-none"
               />
               <button
-                onClick={() => setShowResults(true)}
-                className="px-6 h-11 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium"
+                onClick={handleSearch}
+                disabled={isLoading || !searchQuery.trim()}
+                className={`px-6 h-11 rounded-xl font-medium flex items-center gap-2 transition-colors
+                  ${isLoading 
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                    : 'bg-orange-500 text-white hover:bg-orange-600'}`}
               >
-                Search
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isLoading ? 'Searching...' : 'Search'}
               </button>
             </div>
           </div>
+
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 text-red-800 rounded-xl">
+              {error}
+            </div>
+          )}
         </div>
       </div>
 
       <div className={`transition-all duration-300 ${selectedResult ? 'pr-[600px]' : ''}`}>
         <div className="max-w-4xl mx-auto px-6 py-4">
-          {showResults && mockResults.map((result) => (
+          {showResults && searchResults.map((result) => (
             <ResultCard 
-              key={result.id} 
+              key={result.course.id} 
               result={result} 
               onClick={() => setSelectedResult(result)}
             />
           ))}
+
+          {showResults && searchResults.length === 0 && !isLoading && (
+            <div className="text-center py-12 text-gray-500">
+              No courses found matching your query.
+            </div>
+          )}
         </div>
       </div>
 
@@ -470,4 +504,3 @@ const DetailView = ({ result, onClose }: { result: any; onClose: () => void }) =
     </main>
   )
 }
-
